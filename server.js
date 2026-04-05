@@ -12,7 +12,10 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
  
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch((err) => console.log('❌ Error:', err));
  
@@ -20,6 +23,12 @@ mongoose.connect(process.env.MONGO_URI)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// HEALTH CHECK
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
  
 // ─── CRUD OPERATIONS ───────────────────────────────────────────
  
@@ -37,10 +46,11 @@ app.post('/addUser', async (req, res) => {
 // GET - Get All Users
 app.get('/users', async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().maxTimeMS(10000);
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error fetching users:', err.message);
+    res.status(500).json({ error: err.message, users: [] });
   }
 });
  
