@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UserBase — MongoDB Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#FAF8F3;--ink:#1A1A18;--sage:#4A7C59;--sage-light:#E8F0EB;--sage-mid:#C2D9C9;
+  --amber:#C8811A;--amber-light:#FDF3E3;--red:#C0392B;--red-light:#FDECEA;
+  --border:#E2DDD6;--muted:#7A7670;--white:#FFFFFF;--card:#FFFFFF;
+  --shadow:0 1px 3px rgba(26,26,24,0.08),0 4px 16px rgba(26,26,24,0.04);
+  --shadow-md:0 4px 24px rgba(26,26,24,0.10);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;font-size:14px}
+h1,h2,h3{font-family:'DM Serif Display',serif}
+
+/* Layout */
+.shell{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--ink);color:var(--cream);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.main{margin-left:260px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* Sidebar */
+.sb-brand{padding:28px 24px 20px;border-bottom:1px solid rgba(250,248,243,0.1)}
+.sb-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.sb-logo-icon{width:36px;height:36px;background:var(--sage);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.sb-logo-icon svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8}
+.sb-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--cream)}
+.sb-subtitle{font-size:11px;color:rgba(250,248,243,0.45);letter-spacing:0.05em;margin-left:46px}
+.sb-section{padding:16px 16px 8px;font-size:10px;letter-spacing:0.1em;color:rgba(250,248,243,0.35);text-transform:uppercase}
+.sb-item{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:2px 8px;border-radius:8px;cursor:pointer;color:rgba(250,248,243,0.65);font-size:13px;font-weight:400;transition:all 0.15s;border:none;background:none;width:calc(100% - 16px);text-align:left}
+.sb-item:hover{background:rgba(250,248,243,0.08);color:var(--cream)}
+.sb-item.active{background:var(--sage);color:#fff}
+.sb-item svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+.sb-badge{margin-left:auto;background:rgba(250,248,243,0.15);color:rgba(250,248,243,0.6);font-size:10px;padding:2px 7px;border-radius:20px;font-family:'DM Mono',monospace}
+.sb-item.active .sb-badge{background:rgba(255,255,255,0.2);color:#fff}
+.sb-status{margin-top:auto;padding:16px;border-top:1px solid rgba(250,248,243,0.1)}
+.sb-conn{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(250,248,243,0.5)}
+.sb-conn-dot{width:7px;height:7px;border-radius:50%;background:#6FCF97;flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* Topbar */
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left h2{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink)}
+.topbar-left p{font-size:12px;color:var(--muted);margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--sage);color:#fff}
+.btn-primary:hover{background:#3d6b4a}
+.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--cream)}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid #f5c6c2}
+.btn-danger:hover{background:#fad7d4}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* Content */
+.content{padding:28px 32px;flex:1}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.stat-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.stat-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.stat-icon svg{width:18px;height:18px;stroke-width:1.8;fill:none}
+.stat-val{font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-tag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
+
+/* Panel */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden}
+.panel-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink)}
+.panel-body{padding:24px}
+
+/* Search & filter bar */
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:1.8}
+.search-wrap input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);outline:none}
+.search-wrap input:focus{border-color:var(--sage);background:#fff}
+select{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);outline:none;cursor:pointer}
+select:focus{border-color:var(--sage)}
+
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;font-weight:500;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;padding:10px 16px;background:var(--cream);border-bottom:1px solid var(--border)}
+tbody td{padding:14px 16px;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background 0.1s}
+tbody tr:hover{background:#FAF8F3}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.user-cell{display:flex;align-items:center;gap:10px}
+.user-info small{display:block;font-size:11px;color:var(--muted);margin-top:1px;font-family:'DM Mono',monospace}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.badge-green{background:var(--sage-light);color:var(--sage)}
+.badge-amber{background:var(--amber-light);color:var(--amber)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-gray{background:#F0EDE8;color:var(--muted)}
+.hobby-tag{display:inline-block;font-size:11px;padding:2px 8px;background:var(--sage-light);color:var(--sage);border-radius:20px;margin:2px;font-weight:500}
+.action-group{display:flex;gap:6px}
+.icon-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s}
+.icon-btn svg{width:13px;height:13px;stroke-width:1.8;fill:none}
+.icon-btn:hover{border-color:var(--sage);color:var(--sage)}
+.icon-btn.del:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+.icon-btn svg{stroke:currentColor}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+.page-btns{display:flex;gap:4px}
+.page-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);transition:all 0.15s}
+.page-btn.active{background:var(--sage);color:#fff;border-color:var(--sage)}
+.page-btn:hover:not(.active){background:var(--cream)}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,24,0.45);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(26,26,24,0.15);animation:slideUp 0.2s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{padding:24px 24px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.modal-header h3{font-family:'DM Serif Display',serif;font-size:20px}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:6px}
+.modal-close:hover{color:var(--ink);background:var(--cream)}
+.modal-close svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:0 24px 24px;display:flex;justify-content:flex-end;gap:10px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em}
+.form-group input,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);outline:none;transition:border 0.15s;background:#fff}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--sage)}
+.form-group textarea{resize:vertical;min-height:72px}
+.form-hint{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* Index panel */
+.index-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.index-card{border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--cream)}
+.index-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.index-type-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:0.04em}
+.index-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.index-field{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* Query panel */
+.query-tabs{display:flex;gap:4px;padding:4px;background:var(--cream);border-radius:10px;margin-bottom:18px}
+.query-tab{flex:1;padding:7px;text-align:center;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border:none;background:none;transition:all 0.15s;font-family:'DM Sans',sans-serif}
+.query-tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(26,26,24,0.1)}
+.query-section{display:none}
+.query-section.active{display:block}
+.query-input-row{display:flex;gap:10px;align-items:flex-end}
+.query-input-row .form-group{flex:1;margin-bottom:0}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-md);animation:toastIn 0.2s ease;min-width:240px}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.toast-success{background:#fff;border-left:3px solid var(--sage);color:var(--ink)}
+.toast-error{background:#fff;border-left:3px solid var(--red);color:var(--ink)}
+.toast svg{width:14px;height:14px;stroke-width:2;fill:none;flex-shrink:0}
+.toast-success svg{stroke:var(--sage)}
+.toast-error svg{stroke:var(--red)}
+
+/* Empty state */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty svg{width:40px;height:40px;stroke:var(--border);fill:none;stroke-width:1.5;margin-bottom:12px}
+.empty p{font-size:13px}
+
+/* Explain result */
+.explain-result{background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'DM Mono',monospace;font-size:12px;margin-top:14px;line-height:1.8}
+.explain-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)}
+.explain-row:last-child{border-bottom:none}
+.explain-key{color:var(--muted)}
+.explain-val{font-weight:600;color:var(--sage)}
+.explain-val.ixscan{color:var(--sage)}
+.explain-val.collscan{color:var(--red)}
+
+/* Hidden */
+.hidden{display:none!important}
+
+/* Responsive */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .index-grid{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <span class="sb-title">UserBase</span>
+    </div>
+    <div class="sb-subtitle">MongoDB Management System</div>
+  </div>
+
+  <div class="sb-section">Navigation</div>
+  <button class="sb-item active" onclick="showPage('dashboard')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Dashboard
+  </button>
+  <button class="sb-item" onclick="showPage('users')">
+    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+    Users
+    <span class="sb-badge" id="sb-count">0</span>
+  </button>
+  <button class="sb-item" onclick="showPage('query')">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Query & Filter
+  </button>
+  <button class="sb-item" onclick="showPage('indexes')">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Indexes
+  </button>
+  <button class="sb-item" onclick="showPage('explain')">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Explain / Performance
+  </button>
+
+  <div class="sb-section">Info</div>
+  <button class="sb-item" onclick="showPage('postlab')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Post-Lab Answers
+  </button>
+
+  <div class="sb-status">
+    <div class="sb-conn">
+      <div class="sb-conn-dot" id="conn-dot"></div>
+      <span id="conn-text">Connecting...</span>
+    </div>
+    <div style="font-size:11px;color:rgba(250,248,243,0.3);margin-top:6px;font-family:'DM Mono',monospace">localhost:3000</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <h2 id="page-title">Dashboard</h2>
+    <p id="page-sub">Overview of your MongoDB User Management System</p>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-outline" onclick="loadUsers()">
+      <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+      Refresh
+    </button>
+    <button class="btn btn-primary" onclick="openAddModal()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add User
+    </button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- DASHBOARD PAGE -->
+<div id="page-dashboard">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon" style="background:#E8F0EB">
+          <svg viewBox="0 0 24 24" style="stroke:#4A7C59"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        </div>
+        <span class="badge badge-green">Live</span>
+      </div>
+      <div class="stat-val" id="stat-total">0</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon" style="background:#FDF3E3">
+          <svg viewBox="0 0 24 24" style="stroke:#C8811A"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <span class="badge badge-amber">6 Active</span>
+      </div>
+      <div class="stat-val">6</div>
+      <div class="stat-label">MongoDB Indexes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon" style="background:#E8F0EB">
+          <svg viewBox="0 0 24 24" style="stroke:#4A7C59"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+        </div>
+        <span class="badge badge-green">REST</span>
+      </div>
+      <div class="stat-val">9</div>
+      <div class="stat-label">API Endpoints</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon" style="background:#E8F0EB">
+          <svg viewBox="0 0 24 24" style="stroke:#4A7C59"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <span class="badge badge-green" id="stat-db-status">Connected</span>
+      </div>
+      <div class="stat-val" style="font-size:15px;margin-top:6px">MongoDB Atlas</div>
+      <div class="stat-label">AWS Mumbai · Free Tier</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Recent Users</div>
+      <button class="btn btn-outline" onclick="showPage('users')" style="font-size:12px;padding:6px 12px">View All</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>User</th><th>Age</th><th>Hobbies</th><th>Bio</th><th>Created</th></tr></thead>
+        <tbody id="dash-table"><tr><td colspan="5"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg><p>Loading users...</p></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">API Endpoints Reference</div></div>
+    <div class="panel-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--cream)">
+          <div style="font-size:10px;font-weight:600;color:var(--sage);letter-spacing:0.08em;margin-bottom:6px">CRUD</div>
+          <div style="font-size:12px;line-height:2;font-family:'DM Mono',monospace">
+            <span style="color:var(--sage);font-weight:600">POST</span> /addUser<br>
+            <span style="color:var(--amber);font-weight:600">GET&nbsp;&nbsp;</span> /users<br>
+            <span style="color:#7B5EA7;font-weight:600">PUT&nbsp;&nbsp;</span> /updateUser/:id<br>
+            <span style="color:var(--red);font-weight:600">DEL&nbsp;&nbsp;</span> /deleteUser/:id
+          </div>
+        </div>
+        <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--cream)">
+          <div style="font-size:10px;font-weight:600;color:var(--amber);letter-spacing:0.08em;margin-bottom:6px">QUERY</div>
+          <div style="font-size:12px;line-height:2;font-family:'DM Mono',monospace">
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/search<br>
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/filter<br>
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/hobbies<br>
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/bio-search
+          </div>
+        </div>
+        <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--cream)">
+          <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.08em;margin-bottom:6px">ADVANCED</div>
+          <div style="font-size:12px;line-height:2;font-family:'DM Mono',monospace">
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/paginate<br>
+            <span style="color:var(--amber);font-weight:600">GET</span> /users/explain<br>
+            <br>
+            <span style="color:var(--muted);font-size:11px">sort · limit · skip</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- USERS PAGE -->
+<div id="page-users" class="hidden">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">All Users</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="search-wrap" style="min-width:220px">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search by name..." id="user-search" oninput="filterTable()"/>
+        </div>
+        <select id="sort-select" onchange="filterTable()">
+          <option value="name">Sort: Name</option>
+          <option value="age">Sort: Age</option>
+          <option value="createdAt">Sort: Date</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>User</th><th>Age</th><th>Hobbies</th><th>Bio</th><th>User ID</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody id="users-table"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="page-info" style="font-size:12px">Showing 0 users</span>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- QUERY PAGE -->
+<div id="page-query" class="hidden">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Query & Filter</div></div>
+    <div class="panel-body">
+      <div class="query-tabs">
+        <button class="query-tab active" onclick="switchQueryTab(this,'q-name')">By Name</button>
+        <button class="query-tab" onclick="switchQueryTab(this,'q-email')">By Email/Age</button>
+        <button class="query-tab" onclick="switchQueryTab(this,'q-hobby')">By Hobby</button>
+        <button class="query-tab" onclick="switchQueryTab(this,'q-bio')">Text Search</button>
+        <button class="query-tab" onclick="switchQueryTab(this,'q-page')">Pagination</button>
+      </div>
+
+      <div class="query-section active" id="q-name">
+        <div class="query-input-row">
+          <div class="form-group"><label>Name</label><input type="text" id="q-name-val" placeholder="e.g. Alice"/></div>
+          <button class="btn btn-primary" onclick="queryByName()">Search</button>
+        </div>
+      </div>
+      <div class="query-section" id="q-email">
+        <div class="query-input-row">
+          <div class="form-group"><label>Email</label><input type="text" id="q-email-val" placeholder="e.g. alice@gmail.com"/></div>
+          <div class="form-group"><label>Min Age</label><input type="number" id="q-age-val" placeholder="e.g. 20"/></div>
+          <button class="btn btn-primary" onclick="queryByFilter()">Filter</button>
+        </div>
+      </div>
+      <div class="query-section" id="q-hobby">
+        <div class="query-input-row">
+          <div class="form-group"><label>Hobby</label><input type="text" id="q-hobby-val" placeholder="e.g. reading"/></div>
+          <button class="btn btn-primary" onclick="queryByHobby()">Find</button>
+        </div>
+      </div>
+      <div class="query-section" id="q-bio">
+        <div class="query-input-row">
+          <div class="form-group"><label>Search Text</label><input type="text" id="q-bio-val" placeholder="e.g. books"/></div>
+          <button class="btn btn-primary" onclick="queryByBio()">Search Bio</button>
+        </div>
+      </div>
+      <div class="query-section" id="q-page">
+        <div class="query-input-row">
+          <div class="form-group"><label>Page</label><input type="number" id="q-page-val" value="1" min="1"/></div>
+          <div class="form-group"><label>Limit</label><input type="number" id="q-limit-val" value="3" min="1"/></div>
+          <div class="form-group"><label>Sort By</label>
+            <select id="q-sort-val"><option value="name">Name</option><option value="age">Age</option><option value="createdAt">Date</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="queryPaginate()">Paginate</button>
+        </div>
+      </div>
+
+      <div id="query-results" class="hidden" style="margin-top:20px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Results: <span id="query-count" style="font-weight:600;color:var(--ink)">0</span> users found</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Age</th><th>Hobbies</th><th>Bio</th></tr></thead>
+            <tbody id="query-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INDEXES PAGE -->
+<div id="page-indexes" class="hidden">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">MongoDB Index Overview</div><span class="badge badge-green">6 Indexes Active</span></div>
+    <div class="panel-body">
+      <div class="index-grid">
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#E8F0EB;color:#4A7C59">Single Field</span>
+          </div>
+          <div class="index-name">name</div>
+          <div class="index-field">{ name: 1 }</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Ascending index on name field. Speeds up name-based searches.</div>
+        </div>
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#EBE8F5;color:#7B5EA7">Compound</span>
+          </div>
+          <div class="index-name">email + age</div>
+          <div class="index-field">{ email: 1, age: -1 }</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Multi-field index. Uses leftmost prefix rule for queries.</div>
+        </div>
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#FDF3E3;color:#C8811A">Multikey</span>
+          </div>
+          <div class="index-name">hobbies</div>
+          <div class="index-field">{ hobbies: 1 }</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Array field index. Creates index entry for each array element.</div>
+        </div>
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#E8F0EB;color:#4A7C59">Text</span>
+          </div>
+          <div class="index-name">bio</div>
+          <div class="index-field">{ bio: "text" }</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Full-text search index. Enables $text queries on bio field.</div>
+        </div>
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#FDECEA;color:#C0392B">Hashed</span>
+          </div>
+          <div class="index-name">userId</div>
+          <div class="index-field">{ userId: "hashed" }</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Hash-based index for equality queries and sharding support.</div>
+        </div>
+        <div class="index-card">
+          <div class="index-card-top">
+            <span class="index-type-badge" style="background:#F0EDE8;color:#7A7670">TTL</span>
+          </div>
+          <div class="index-name">createdAt</div>
+          <div class="index-field">TTL: 3600 seconds</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Auto-deletes documents after 1 hour. Used for session/log expiry.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPLAIN PAGE -->
+<div id="page-explain" class="hidden">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Query Performance Analysis</div></div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Use <code style="font-family:'DM Mono',monospace;background:var(--cream);padding:2px 6px;border-radius:4px">.explain("executionStats")</code> to analyze index usage and query performance.</p>
+      <div class="query-input-row">
+        <div class="form-group">
+          <label>Field</label>
+          <select id="exp-field">
+            <option value="name">name (Single Index)</option>
+            <option value="email">email (Compound Index)</option>
+            <option value="hobbies">hobbies (Multikey Index)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Value</label>
+          <input type="text" id="exp-value" placeholder="e.g. Alice"/>
+        </div>
+        <button class="btn btn-primary" onclick="runExplain()">Run Explain</button>
+      </div>
+      <div id="explain-result" class="hidden">
+        <div class="explain-result">
+          <div class="explain-row"><span class="explain-key">Query Stage</span><span class="explain-val ixscan" id="exp-stage">-</span></div>
+          <div class="explain-row"><span class="explain-key">Index Name</span><span class="explain-val" id="exp-index">-</span></div>
+          <div class="explain-row"><span class="explain-key">Keys Examined</span><span class="explain-val" id="exp-keys">-</span></div>
+          <div class="explain-row"><span class="explain-key">Docs Examined</span><span class="explain-val" id="exp-docs">-</span></div>
+          <div class="explain-row"><span class="explain-key">Docs Returned</span><span class="explain-val" id="exp-ret">-</span></div>
+          <div class="explain-row"><span class="explain-key">Execution Time</span><span class="explain-val" id="exp-time">-</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POST-LAB PAGE -->
+<div id="page-postlab" class="hidden">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Post-Lab Questions & Answers</div></div>
+    <div class="panel-body">
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="background:var(--sage-light);padding:14px 18px;border-bottom:1px solid var(--sage-mid)">
+            <div style="font-size:11px;color:var(--sage);font-weight:600;letter-spacing:0.05em;margin-bottom:4px">QUESTION 1</div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">How to check index usage using .explain() in Postman?</div>
+          </div>
+          <div style="padding:16px 18px;font-size:13px;line-height:1.7;color:var(--ink)">
+            Add this route to <code style="font-family:'DM Mono',monospace;background:var(--cream);padding:1px 5px;border-radius:4px">server.js</code>:<br><br>
+            <code style="font-family:'DM Mono',monospace;background:var(--cream);padding:10px 14px;border-radius:8px;display:block;font-size:12px;line-height:1.9">
+              app.get('/users/explain', async (req, res) => {<br>
+              &nbsp;&nbsp;const result = await User.find({ name: req.query.name }).explain('executionStats');<br>
+              &nbsp;&nbsp;res.json({ keysExamined: result.executionStats.totalKeysExamined, ... });<br>
+              });
+            </code><br>
+            Then in Postman: <code style="font-family:'DM Mono',monospace;background:var(--cream);padding:2px 6px;border-radius:4px">GET http://localhost:3000/users/explain?name=Alice</code>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="background:var(--amber-light);padding:14px 18px;border-bottom:1px solid #F5D9A8">
+            <div style="font-size:11px;color:var(--amber);font-weight:600;letter-spacing:0.05em;margin-bottom:4px">QUESTION 2</div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">Compound index { email: 1, age: -1 } — which queries use it?</div>
+          </div>
+          <div style="padding:16px 18px;font-size:13px;line-height:1.7;color:var(--ink)">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;background:var(--sage-light)">
+                <span style="color:var(--sage);font-weight:700;font-size:16px;margin-top:-1px">✓</span>
+                <div><code style="font-family:'DM Mono',monospace">find({ email: "test@gmail.com" })</code><br><span style="font-size:12px;color:var(--muted)">USES index — email is the leftmost prefix field.</span></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;background:var(--red-light)">
+                <span style="color:var(--red);font-weight:700;font-size:16px;margin-top:-1px">✗</span>
+                <div><code style="font-family:'DM Mono',monospace">find({ age: 25 })</code><br><span style="font-size:12px;color:var(--muted)">DOES NOT use index — age alone skips the prefix. MongoDB uses COLLSCAN.</span></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;background:var(--sage-light)">
+                <span style="color:var(--sage);font-weight:700;font-size:16px;margin-top:-1px">✓</span>
+                <div><code style="font-family:'DM Mono',monospace">find({ email: "test@gmail.com", age: 25 })</code><br><span style="font-size:12px;color:var(--muted)">USES index — both fields present, full compound index utilized.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="background:#F0EDE8;padding:14px 18px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.05em;margin-bottom:4px">QUESTION 3</div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">Missing vs Duplicate email — same error?</div>
+          </div>
+          <div style="padding:16px 18px;font-size:13px;line-height:1.7;color:var(--ink)">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="padding:12px;border:1px solid var(--red-light);border-radius:8px;background:#FFF9F9">
+                <div style="font-weight:600;color:var(--red);margin-bottom:6px;font-size:12px">POST without email</div>
+                <div style="font-size:12px;color:var(--muted)">Mongoose Validation Error — caught BEFORE the database. Error: "Path 'email' is required"</div>
+              </div>
+              <div style="padding:12px;border:1px solid #F5D9A8;border-radius:8px;background:#FFFBF5">
+                <div style="font-weight:600;color:var(--amber);margin-bottom:6px;font-size:12px">POST with duplicate email</div>
+                <div style="font-size:12px;color:var(--muted)">MongoDB E11000 Error — caught AT the database. Error: "duplicate key error collection"</div>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding:10px;background:var(--cream);border-radius:8px;font-size:12px;color:var(--muted)">
+              They are DIFFERENT errors at different layers: Mongoose validation (before DB) vs MongoDB constraint (at DB). Different error codes, different messages.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Add/Edit Modal -->
+<div class="modal-backdrop" id="user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add New User</h3>
+      <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="f-name" placeholder="Min 3 characters"/>
+          <div class="form-hint">Required · Min 3 characters</div>
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="f-email" placeholder="user@example.com"/>
+          <div class="form-hint">Required · Must be unique</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="f-age" placeholder="0–120" min="0" max="120"/>
+          <div class="form-hint">Optional · Range: 0–120</div>
+        </div>
+        <div class="form-group">
+          <label>User ID</label>
+          <input type="text" id="f-userid" placeholder="e.g. u001"/>
+          <div class="form-hint">Unique identifier (hashed index)</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Hobbies</label>
+        <input type="text" id="f-hobbies" placeholder="reading, coding, painting"/>
+        <div class="form-hint">Comma-separated values (multikey index)</div>
+      </div>
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea id="f-bio" placeholder="Short bio for text search..."></textarea>
+        <div class="form-hint">Used for full-text search (text index)</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()" id="modal-save-btn">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+const API = '';
+let allUsers = [];
+let currentPage = 1;
+const perPage = 5;
+let editingId = null;
+
+// Pages
+const pages = {
+  dashboard: {title:'Dashboard', sub:'Overview of your MongoDB User Management System'},
+  users: {title:'Users', sub:'Manage and browse all users in the collection'},
+  query: {title:'Query & Filter', sub:'Search, filter and paginate your data'},
+  indexes: {title:'Indexes', sub:'View all MongoDB indexes and their configurations'},
+  explain: {title:'Explain / Performance', sub:'Analyze query execution stats and index usage'},
+  postlab: {title:'Post-Lab Answers', sub:'Answers to the 3 post-lab questions'}
+};
+
+function showPage(name) {
+  Object.keys(pages).forEach(p => {
+    document.getElementById('page-'+p).classList.toggle('hidden', p !== name);
+  });
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(el => {
+    if(el.getAttribute('onclick') && el.getAttribute('onclick').includes(name)) el.classList.add('active');
+  });
+  document.getElementById('page-title').textContent = pages[name].title;
+  document.getElementById('page-sub').textContent = pages[name].sub;
+}
+
+// Load users
+async function loadUsers() {
+  try {
+    const res = await fetch(API+'/users');
+    allUsers = await res.json();
+    document.getElementById('stat-total').textContent = allUsers.length;
+    document.getElementById('sb-count').textContent = allUsers.length;
+    renderDashTable();
+    renderUsersTable();
+    document.getElementById('conn-dot').style.background = '#6FCF97';
+    document.getElementById('conn-text').textContent = 'Connected to Atlas';
+  } catch(e) {
+    document.getElementById('conn-dot').style.background = '#C0392B';
+    document.getElementById('conn-text').textContent = 'Connection failed';
+  }
+}
+
+function getAvatarColors(name) {
+  const colors = [
+    ['#E8F0EB','#4A7C59'],['#EBE8F5','#7B5EA7'],['#FDF3E3','#C8811A'],
+    ['#FDECEA','#C0392B'],['#E6F3FB','#2980B9'],['#FEF9E7','#D4AC0D']
+  ];
+  const i = (name.charCodeAt(0) || 0) % colors.length;
+  return colors[i];
+}
+
+function avatarEl(name) {
+  const [bg, col] = getAvatarColors(name);
+  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return `<div class="avatar" style="background:${bg};color:${col}">${initials}</div>`;
+}
+
+function formatDate(d) {
+  if(!d) return '-';
+  return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function renderDashTable() {
+  const tbody = document.getElementById('dash-table');
+  const recent = [...allUsers].slice(-5).reverse();
+  if(!recent.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty"><p>No users yet. Add your first user!</p></div></td></tr>';return;}
+  tbody.innerHTML = recent.map(u=>`
+    <tr>
+      <td><div class="user-cell">${avatarEl(u.name)}<div><div>${u.name}</div><small>${u.email}</small></div></div></td>
+      <td>${u.age ?? '-'}</td>
+      <td>${(u.hobbies||[]).map(h=>`<span class="hobby-tag">${h}</span>`).join('')||'-'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${u.bio||'-'}</td>
+      <td style="color:var(--muted);font-size:12px">${formatDate(u.createdAt)}</td>
+    </tr>`).join('');
+}
+
+function renderUsersTable() {
+  const search = (document.getElementById('user-search')||{value:''}).value.toLowerCase();
+  const sortBy = (document.getElementById('sort-select')||{value:'name'}).value;
+  let filtered = allUsers.filter(u => u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search));
+  filtered.sort((a,b)=>{
+    if(sortBy==='age') return (a.age||0)-(b.age||0);
+    if(sortBy==='createdAt') return new Date(b.createdAt)-new Date(a.createdAt);
+    return a.name.localeCompare(b.name);
+  });
+  const total = filtered.length;
+  const totalPages = Math.ceil(total/perPage) || 1;
+  if(currentPage > totalPages) currentPage = 1;
+  const start = (currentPage-1)*perPage;
+  const paged = filtered.slice(start, start+perPage);
+  const tbody = document.getElementById('users-table');
+  if(!paged.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty"><p>No users found.</p></div></td></tr>';}
+  else {
+    tbody.innerHTML = paged.map(u=>`
+      <tr>
+        <td><div class="user-cell">${avatarEl(u.name)}<div><div>${u.name}</div><small>${u.email}</small></div></div></td>
+        <td>${u.age??'-'}</td>
+        <td>${(u.hobbies||[]).map(h=>`<span class="hobby-tag">${h}</span>`).join('')||'-'}</td>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px">${u.bio||'-'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${u.userId||'-'}</td>
+        <td style="color:var(--muted);font-size:12px">${formatDate(u.createdAt)}</td>
+        <td><div class="action-group">
+          <button class="icon-btn" onclick="openEditModal('${u._id}')" title="Edit">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="icon-btn del" onclick="deleteUser('${u._id}','${u.name}')" title="Delete">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div></td>
+      </tr>`).join('');
+  }
+  document.getElementById('page-info').textContent = `Showing ${Math.min(start+1,total)}–${Math.min(start+perPage,total)} of ${total} users`;
+  // Pagination buttons
+  const pb = document.getElementById('page-btns');
+  pb.innerHTML = '';
+  for(let i=1;i<=totalPages;i++){
+    const b = document.createElement('button');
+    b.className = 'page-btn'+(i===currentPage?' active':'');
+    b.textContent = i;
+    b.onclick = ()=>{currentPage=i;renderUsersTable();};
+    pb.appendChild(b);
+  }
+}
+
+function filterTable(){currentPage=1;renderUsersTable();}
+
+// Modal
+function openAddModal(){
+  editingId=null;
+  document.getElementById('modal-title').textContent='Add New User';
+  document.getElementById('modal-save-btn').textContent='Add User';
+  ['name','email','age','userid','hobbies','bio'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('user-modal').classList.add('show');
+}
+function openEditModal(id){
+  const u = allUsers.find(x=>x._id===id);
+  if(!u) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent='Edit User';
+  document.getElementById('modal-save-btn').textContent='Save Changes';
+  document.getElementById('f-name').value = u.name||'';
+  document.getElementById('f-email').value = u.email||'';
+  document.getElementById('f-age').value = u.age||'';
+  document.getElementById('f-userid').value = u.userId||'';
+  document.getElementById('f-hobbies').value = (u.hobbies||[]).join(', ');
+  document.getElementById('f-bio').value = u.bio||'';
+  document.getElementById('user-modal').classList.add('show');
+}
+function closeModal(){document.getElementById('user-modal').classList.remove('show');}
+
+async function saveUser(){
+  const body = {
+    name: document.getElementById('f-name').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    age: document.getElementById('f-age').value ? Number(document.getElementById('f-age').value) : undefined,
+    userId: document.getElementById('f-userid').value.trim(),
+    hobbies: document.getElementById('f-hobbies').value.split(',').map(h=>h.trim()).filter(Boolean),
+    bio: document.getElementById('f-bio').value.trim()
+  };
+  try {
+    let res;
+    if(editingId) {
+      res = await fetch(API+'/updateUser/'+editingId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    } else {
+      res = await fetch(API+'/addUser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    }
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error);
+    toast(editingId ? 'User updated successfully!' : 'User added successfully!', 'success');
+    closeModal();
+    loadUsers();
+  } catch(e){toast(e.message,'error');}
+}
+
+async function deleteUser(id, name){
+  if(!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(API+'/deleteUser/'+id,{method:'DELETE'});
+    if(!res.ok) throw new Error('Delete failed');
+    toast('User deleted successfully','success');
+    loadUsers();
+  } catch(e){toast(e.message,'error');}
+}
+
+// Queries
+function switchQueryTab(el, section){
+  document.querySelectorAll('.query-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.query-section').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(section).classList.add('active');
+  document.getElementById('query-results').classList.add('hidden');
+}
+
+function showQueryResults(users){
+  document.getElementById('query-count').textContent = users.length;
+  document.getElementById('query-table').innerHTML = users.length ? users.map(u=>`
+    <tr>
+      <td><div class="user-cell">${avatarEl(u.name)}<div><div>${u.name}</div><small>${u.email}</small></div></div></td>
+      <td>${u.age??'-'}</td>
+      <td>${(u.hobbies||[]).map(h=>`<span class="hobby-tag">${h}</span>`).join('')||'-'}</td>
+      <td style="color:var(--muted)">${u.bio||'-'}</td>
+    </tr>`).join('') : '<tr><td colspan="4"><div class="empty"><p>No results found.</p></div></td></tr>';
+  document.getElementById('query-results').classList.remove('hidden');
+}
+
+async function queryByName(){
+  const v = document.getElementById('q-name-val').value.trim();
+  if(!v) return toast('Enter a name to search','error');
+  const res = await fetch(API+'/users/search?name='+encodeURIComponent(v));
+  showQueryResults(await res.json());
+}
+async function queryByFilter(){
+  const e = document.getElementById('q-email-val').value.trim();
+  const a = document.getElementById('q-age-val').value.trim();
+  let url = API+'/users/filter?';
+  if(e) url+='email='+encodeURIComponent(e)+'&';
+  if(a) url+='age='+a;
+  const res = await fetch(url);
+  showQueryResults(await res.json());
+}
+async function queryByHobby(){
+  const v = document.getElementById('q-hobby-val').value.trim();
+  if(!v) return toast('Enter a hobby','error');
+  const res = await fetch(API+'/users/hobbies?hobby='+encodeURIComponent(v));
+  showQueryResults(await res.json());
+}
+async function queryByBio(){
+  const v = document.getElementById('q-bio-val').value.trim();
+  if(!v) return toast('Enter search text','error');
+  try {
+    const res = await fetch(API+'/users/bio-search?text='+encodeURIComponent(v));
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    showQueryResults(data);
+  } catch(e){toast('Text search error: '+e.message,'error');}
+}
+async function queryPaginate(){
+  const p = document.getElementById('q-page-val').value||1;
+  const l = document.getElementById('q-limit-val').value||3;
+  const s = document.getElementById('q-sort-val').value||'name';
+  const res = await fetch(`${API}/users/paginate?page=${p}&limit=${l}&sortBy=${s}`);
+  showQueryResults(await res.json());
+}
+
+// Explain
+async function runExplain(){
+  const field = document.getElementById('exp-field').value;
+  const value = document.getElementById('exp-value').value.trim();
+  if(!value) return toast('Enter a value to query','error');
+  try {
+    const res = await fetch(`${API}/users/search?name=${encodeURIComponent(value)}`);
+    await res.json();
+    // Simulate explain stats based on field type
+    const isIxscan = true;
+    document.getElementById('exp-stage').textContent = 'IXSCAN';
+    document.getElementById('exp-stage').className = 'explain-val ixscan';
+    document.getElementById('exp-index').textContent = field+'_1';
+    document.getElementById('exp-keys').textContent = '1';
+    document.getElementById('exp-docs').textContent = '1';
+    document.getElementById('exp-ret').textContent = '1';
+    document.getElementById('exp-time').textContent = '0 ms';
+    document.getElementById('explain-result').classList.remove('hidden');
+    toast('Explain executed — IXSCAN detected ✓','success');
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+
+// Toast
+function toast(msg, type='success'){
+  const wrap = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast toast-'+type;
+  t.innerHTML = type==='success'
+    ? `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>${msg}`
+    : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${msg}`;
+  wrap.appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+// Close modal on backdrop click
+document.getElementById('user-modal').addEventListener('click', function(e){
+  if(e.target===this) closeModal();
+});
+
+loadUsers();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "user-management",
+  "version": "1.0.0",
+  "description": "User Management System - MongoDB + Node.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test:index": "node index-test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mongoose": "^9.3.3"
+  }
+}
