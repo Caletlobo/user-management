@@ -10,14 +10,35 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
- 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-})
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch((err) => console.log('❌ Error:', err));
+
+let isConnected = false;
+
+// Connect to MongoDB once
+async function connectDB() {
+  if (isConnected) return;
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 30000,
+      maxPoolSize: 5,
+    });
+    isConnected = true;
+    console.log('✅ Connected to MongoDB');
+  } catch (err) {
+    console.log('❌ MongoDB Error:', err.message);
+  }
+}
+
+// Connect on startup
+connectDB();
+
+// Ensure connection on each request
+app.use(async (req, res, next) => {
+  if (!isConnected) {
+    await connectDB();
+  }
+  next();
+});
  
 // HOME - Serve Frontend
 app.get('/', (req, res) => {
@@ -46,7 +67,9 @@ app.post('/addUser', async (req, res) => {
 // GET - Get All Users
 app.get('/users', async (req, res) => {
   try {
-    const users = await User.find().maxTimeMS(10000);
+    await connectDB();
+    const users = await User.find().lean();
+    console.log('✅ Fetched', users.length, 'users');
     res.json(users);
   } catch (err) {
     console.error('❌ Error fetching users:', err.message);
