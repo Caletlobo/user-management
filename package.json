@@ -1,5 +1,5 @@
 {
-  "name": "user-management",
+  "name": "user-management-app",
   "version": "1.0.0",
   "description": "User Management System - MongoDB + Node.js",
   "main": "server.js",
