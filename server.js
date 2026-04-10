@@ -56,41 +56,81 @@ app.get('/health', (req, res) => {
 // POST - Add User
 app.post('/addUser', async (req, res) => {
   try {
+    await connectDB();
     const user = new User(req.body);
     await user.save();
     res.status(201).json({ message: 'User created successfully', user });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    // Extract validation error details
+    let errorMsg = err.message;
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      errorMsg = errors.join(', ');
+    } else if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      errorMsg = `${field} already exists`;
+    }
+    res.status(400).json({ error: errorMsg });
   }
 });
  
 // GET - Get All Users
 app.get('/users', async (req, res) => {
   try {
-    await connectDB();
+    // Ensure DB connection before query
+    if (!isConnected) {
+      await connectDB();
+    }
     const users = await User.find().lean();
     console.log('✅ Fetched', users.length, 'users');
     res.json(users);
   } catch (err) {
     console.error('❌ Error fetching users:', err.message);
-    res.status(500).json({ error: err.message, users: [] });
+    res.status(500).json({ 
+      error: 'Failed to fetch users. ' + err.message,
+      users: [] 
+    });
   }
 });
  
 // PUT - Update User by ID
 app.put('/updateUser/:id', async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    await connectDB();
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     res.json({ message: 'User updated successfully', user });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    let errorMsg = err.message;
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      errorMsg = errors.join(', ');
+    } else if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      errorMsg = `${field} already exists`;
+    }
+    res.status(400).json({ error: errorMsg });
   }
 });
  
 // DELETE - Delete User by ID
 app.delete('/deleteUser/:id', async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    await connectDB();
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });

@@ -830,14 +830,18 @@ function openEditModal(id){
 function closeModal(){document.getElementById('user-modal').classList.remove('show');}
 
 async function saveUser(){
-  const body = {
-    name: document.getElementById('f-name').value.trim(),
-    email: document.getElementById('f-email').value.trim(),
-    age: document.getElementById('f-age').value ? Number(document.getElementById('f-age').value) : undefined,
-    userId: document.getElementById('f-userid').value.trim(),
-    hobbies: document.getElementById('f-hobbies').value.split(',').map(h=>h.trim()).filter(Boolean),
-    bio: document.getElementById('f-bio').value.trim()
-  };
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const ageVal = document.getElementById('f-age').value.trim();
+  const userId = document.getElementById('f-userid').value.trim();
+  const hobbies = document.getElementById('f-hobbies').value.split(',').map(h=>h.trim()).filter(Boolean);
+  const bio = document.getElementById('f-bio').value.trim();
+  
+  // Build body - only include age if provided
+  const body = { name, email, hobbies, bio };
+  if(userId) body.userId = userId;
+  if(ageVal) body.age = Number(ageVal);
+  
   try {
     let res;
     if(editingId) {
